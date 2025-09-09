@@ -7,12 +7,13 @@
 #include <thread>
 #include <mutex>
 #include <atomic>
-#include <chrono>
+#include <condition_variable>
+
 #include "map.h"
 #include "genetic.h"
 #include "annealing.h"
 
-#define NUM_CITIES 50
+#define NUM_CITIES 200
 
 class AlgorithmVisualization
 {
@@ -97,11 +98,11 @@ public:
         problem.distanceMatrix = buildDistanceMatrix(problem);
 
         gaParams.populationSize = NUM_CITIES * 10;
-        gaParams.generations = NUM_CITIES * 100;
-        gaParams.elitism = static_cast<int>(static_cast<double>(gaParams.populationSize) * 0.05f);
-        gaParams.tournamentK = std::max(2, static_cast<int>(static_cast<double>(gaParams.populationSize) * 0.02f));
-        gaParams.mutationRate = 0.02;
-        gaParams.stallLimit = gaParams.generations / 2;
+        gaParams.generations = NUM_CITIES * 500;
+        gaParams.elitism = static_cast<int>(static_cast<double>(gaParams.populationSize) * 0.03f);
+        gaParams.tournamentK = std::max(2, static_cast<int>(static_cast<double>(gaParams.populationSize) * 0.001f));
+        gaParams.mutationRate = 0.1;
+        gaParams.stallLimit = gaParams.generations / 10;
 
         population.resize(gaParams.populationSize);
         initPopulation(population, problem.numCities(), gaRng);
@@ -118,11 +119,11 @@ public:
         saState.problem = problem;
         saState.params.initialTemp = 1000.0;
         saState.params.finalTemp = 1e-3;
-        saState.params.alpha = 1.0 / (0.2 * problem.numCities());
+        saState.params.alpha = 1.0 / (0.2 * NUM_CITIES);
         saState.params.actualTemp = saState.params.initialTemp;
         saState.iterations = 5;
 
-        saState.currentPath.order.resize(problem.numCities());
+        saState.currentPath.order.resize(NUM_CITIES);
         std::iota(saState.currentPath.order.begin(), saState.currentPath.order.end(), 0);
         std::shuffle(saState.currentPath.order.begin(), saState.currentPath.order.end(), saRng.eng);
         saState.currentPath.dist = routeLength(saState.currentPath.order, problem.distanceMatrix);
@@ -349,7 +350,7 @@ public:
         if (IsKeyPressed(KEY_R))
         {
             StopThreads();
-            InitializeCities(NUM_CITIES);
+            // InitializeCities(NUM_CITIES);
             InitializeAlgorithms();
             StartThreads();
         }

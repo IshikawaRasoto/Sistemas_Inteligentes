@@ -2,6 +2,7 @@
 #define SALEMAN_GENETIC_H
 #include <numeric>
 
+#include "annealing.h"
 #include "map.h"
 
 struct GAParams {
@@ -67,8 +68,7 @@ inline void mutateSwap(Path &ind, const double mutationRate, RNG &rng) {
   const size_t n = ind.order.size();
   for (size_t i = 0; i < n; ++i) {
     if (rng.rand01() < mutationRate) {
-      const size_t j = rng.randint(0, n - 1);
-      std::swap(ind.order[i], ind.order[j]);
+      twoOptSwap(ind, rng);
     }
   }
 }
