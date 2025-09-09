@@ -8,3 +8,6 @@
 
 ### Tarefa 1 - Análise comparativa entre o algorimtmo de têmepra simulada e algoritmo genético aplicado ao problema do caixeiro viajante
 
+- <a href="https://github.com/IshikawaRasoto/Sistemas_Inteligentes/tree/main/Tarefa1">👾 Repositório</a>
+
+- <a href="https://www.overleaf.com/read/hgkxznbdwhpr#040245">📄 Artigo</a>
