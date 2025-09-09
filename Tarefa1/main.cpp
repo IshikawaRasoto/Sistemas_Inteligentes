@@ -12,27 +12,29 @@
 #include "map.h"
 #include "genetic.h"
 #include "annealing.h"
+#include "logger.h"
 
-#define NUM_CITIES 200
+#define NUM_CITIES 250
 
 class AlgorithmVisualization
 {
 private:
+    Logger logger;
+    unsigned int loggerCounter = 0;
+
     Problem problem;
     RNG gaRng;
     RNG saRng;
-    
+
     std::vector<Path> population;
     GAParams gaParams;
     Path gaBestPath;
     size_t generation = 0;
     size_t stallCounter = 0;
     bool gaFinished = false;
-    std::vector<double> gaDistanceHistory;
-    
+
     AnnealingState saState;
     bool saFinished = false;
-    std::vector<double> saDistanceHistory;
 
     std::thread saThread;
     std::thread gaThread;
@@ -40,9 +42,9 @@ private:
     mutable std::mutex gaMutex;
     std::condition_variable cv;
     std::mutex cvMutex;
-    std::atomic<bool> running{false};
+    std::atomic<bool> running{ false };
     bool stepSignal = false;
-    
+
     int screenWidth, screenHeight;
     int mapX, mapY, mapW, mapH;
     bool showGA = true;
@@ -60,13 +62,13 @@ private:
 
 public:
     AlgorithmVisualization(const int width, const int height)
-        : gaRng(std::random_device{}()), saRng(std::random_device{}()), screenWidth(width), screenHeight(height)
-    {
+        : logger("tsp_comparison0.csv"), gaRng(std::random_device{}()), saRng(std::random_device{}()), screenWidth(width),
+        screenHeight(height) {
         mapX = 50;
         mapY = 50;
         mapW = (screenWidth - 100) / 2 - 50;
         mapH = screenHeight - 300;
-        
+
         InitializeCities(NUM_CITIES);
         InitializeAlgorithms();
         StartThreads();
@@ -81,7 +83,7 @@ public:
     {
         initializeMap(problem.map, mapW, mapH);
         populateCities(problem, gaRng, problem.map, numCities);
-        
+
         for (auto& city : problem.cities)
         {
             city.x = mapX + 20 + (city.x % (mapW - 40));
@@ -108,13 +110,12 @@ public:
         initPopulation(population, problem.numCities(), gaRng);
         evaluate(population, problem.distanceMatrix);
         std::sort(population.begin(), population.end(),
-                  [](const auto &a, const auto &b) { return a.dist < b.dist; });
+            [](const auto& a, const auto& b) { return a.dist < b.dist; });
 
         gaBestPath = population[0];
         generation = 0;
         stallCounter = 0;
         gaFinished = false;
-        gaDistanceHistory.clear();
 
         saState.problem = problem;
         saState.params.initialTemp = 1000.0;
@@ -130,7 +131,6 @@ public:
         saState.bestPath = saState.currentPath;
         saState.bestDist = saState.currentPath.dist;
         saFinished = false;
-        saDistanceHistory.clear();
     }
 
     void StartThreads()
@@ -151,7 +151,7 @@ public:
                     if (!saFinished) StepSA();
                 }
             }
-        });
+            });
 
         gaThread = std::thread([this]() {
             while (running)
@@ -166,7 +166,7 @@ public:
                     if (!gaFinished) StepGA();
                 }
             }
-        });
+            });
     }
 
     void StopThreads()
@@ -191,11 +191,7 @@ public:
             return;
         }
 
-        saDistanceHistory.push_back(saState.bestDist);
-        if (saDistanceHistory.size() > 200)
-        {
-            saDistanceHistory.erase(saDistanceHistory.begin());
-        }
+        logger.AddSAValue(saState.currentIterations, saState.bestDist);
     }
 
     void StepGA()
@@ -213,8 +209,8 @@ public:
 
         for (size_t i = gaParams.elitism; i < population.size(); ++i)
         {
-            const Path &p1 = population[tournamentSelect(population, gaRng, gaParams.tournamentK)];
-            const Path &p2 = population[tournamentSelect(population, gaRng, gaParams.tournamentK)];
+            const Path& p1 = population[tournamentSelect(population, gaRng, gaParams.tournamentK)];
+            const Path& p2 = population[tournamentSelect(population, gaRng, gaParams.tournamentK)];
             orderCrossover(p1, p2, nextPop[i], gaRng);
             mutateSwap(nextPop[i], gaParams.mutationRate, gaRng);
         }
@@ -222,7 +218,7 @@ public:
         population.swap(nextPop);
         evaluate(population, problem.distanceMatrix);
         std::sort(population.begin(), population.end(),
-                  [](const auto &a, const auto &b) { return a.dist < b.dist; });
+            [](const auto& a, const auto& b) { return a.dist < b.dist; });
 
         if (population[0].dist + 1e-9 < gaBestPath.dist)
         {
@@ -235,12 +231,7 @@ public:
         }
 
         generation++;
-
-        gaDistanceHistory.push_back(gaBestPath.dist);
-        if (gaDistanceHistory.size() > 200)
-        {
-            gaDistanceHistory.erase(gaDistanceHistory.begin());
-        }
+        logger.AddGAValue(generation, gaBestPath.dist);
     }
 
     static void DrawPath(const std::vector<City>& path, const Color c, const float thick, const int offsetX = 0)
@@ -249,8 +240,8 @@ public:
         {
             const City& a = path[i];
             const City& b = path[(i + 1) % path.size()];
-            DrawLineEx({static_cast<float>(a.x + offsetX), static_cast<float>(a.y)},
-                      {static_cast<float>(b.x + offsetX), static_cast<float>(b.y)}, thick, c);
+            DrawLineEx({ static_cast<float>(a.x + offsetX), static_cast<float>(a.y) },
+                { static_cast<float>(b.x + offsetX), static_cast<float>(b.y) }, thick, c);
         }
     }
 
@@ -341,7 +332,7 @@ public:
 
         std::ostringstream diffs;
         diffs << "Difference: " << std::fixed << std::setprecision(1)
-              << std::abs(saState.bestDist - gaBestPath.dist);
+            << std::abs(saState.bestDist - gaBestPath.dist);
         DrawText(diffs.str().c_str(), leftX, compY + 45, 12, GRAY);
     }
 
@@ -352,6 +343,8 @@ public:
             StopThreads();
             // InitializeCities(NUM_CITIES);
             InitializeAlgorithms();
+            loggerCounter++;
+            logger = Logger("tsp_comparison" + std::to_string(loggerCounter) + ".csv");
             StartThreads();
         }
 
@@ -369,7 +362,7 @@ public:
 
     void Draw() const {
         BeginDrawing();
-        ClearBackground(Color{15, 20, 35, 255});
+        ClearBackground(Color{ 15, 20, 35, 255 });
 
         const int centerX = screenWidth / 2;
         DrawLine(centerX, 0, centerX, screenHeight - 250, GRAY);
@@ -430,8 +423,8 @@ public:
 
 int main()
 {
-    constexpr int screenWidth = 1920;
-    constexpr int screenHeight = 1080;
+    constexpr int screenWidth = 1680;
+    constexpr int screenHeight = 720;
 
     InitWindow(screenWidth, screenHeight, "TSP: Simulated Annealing vs Genetic Algorithm");
 

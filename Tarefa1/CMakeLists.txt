@@ -21,6 +21,6 @@ FetchContent_MakeAvailable(raylib)
 add_executable(saleman main.cpp
      map.h
      genetic.h
-     annealing.h)
+     annealing.h "logger.h")
 
 target_link_libraries(saleman PRIVATE raylib)

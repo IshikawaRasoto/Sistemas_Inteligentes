@@ -8,6 +8,8 @@ struct AnnealingParams {
     double finalTemp = 1e-3;
     double alpha = 0.0;
     double actualTemp = initialTemp;
+    //unsigned int neighborsPerTemp = 10;
+    //unsigned int stallLimit = 500;
 };
 
 struct AnnealingState {
@@ -18,6 +20,7 @@ struct AnnealingState {
     double bestDist = std::numeric_limits<double>::infinity();
     unsigned int iterations = 0;
     unsigned int currentIterations = 0;
+	//unsigned int stallCounter = 0;
 };
 
 inline Path twoOptSwap(Path &path, RNG &rng) {
