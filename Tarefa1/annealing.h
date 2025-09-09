@@ -8,8 +8,8 @@ struct AnnealingParams {
     double finalTemp = 1e-3;
     double alpha = 0.0;
     double actualTemp = initialTemp;
-    //unsigned int neighborsPerTemp = 10;
-    //unsigned int stallLimit = 500;
+    unsigned int neighborsPerTemp = 10;
+    unsigned int stallLimit = 500;
 };
 
 struct AnnealingState {
@@ -20,7 +20,7 @@ struct AnnealingState {
     double bestDist = std::numeric_limits<double>::infinity();
     unsigned int iterations = 0;
     unsigned int currentIterations = 0;
-	//unsigned int stallCounter = 0;
+	unsigned int stallCounter = 0;
 };
 
 inline Path twoOptSwap(Path &path, RNG &rng) {
@@ -35,19 +35,26 @@ inline Path twoOptSwap(Path &path, RNG &rng) {
     return swap;
 }
 
-inline bool runAnnealing(AnnealingState &state, RNG &rng) {
-    if (state.params.actualTemp < state.params.finalTemp) {
-        return false;
+inline double routePathLength(const Path& path, const Problem& problem) {
+    return routeLength(path.order, problem.distanceMatrix);
+}
+
+inline bool runAnnealing(AnnealingState& state, RNG& rng) {
+    if (state.params.actualTemp < state.params.finalTemp ||
+        state.stallCounter >= state.params.stallLimit) {
+        return false; 
     }
 
-    for (unsigned int i = 0; i < state.iterations; ++i) {
+    for (unsigned int i = 0; i < state.params.neighborsPerTemp; ++i) {
         Path candidate = twoOptSwap(state.currentPath, rng);
-        const double current_dist = routeLength(state.currentPath.order, state.problem.distanceMatrix);
-        const double candidate_dist = routeLength(candidate.order, state.problem.distanceMatrix);
+
+        double current_dist = routePathLength(state.currentPath, state.problem);
+        double candidate_dist = routePathLength(candidate, state.problem);
 
         if (candidate_dist < current_dist) {
             state.currentPath = candidate;
-        } else {
+        }
+        else {
             const double delta = candidate_dist - current_dist;
             const double acceptance_prob = std::exp(-delta / state.params.actualTemp);
             if (rng.rand01() < acceptance_prob) {
@@ -55,16 +62,26 @@ inline bool runAnnealing(AnnealingState &state, RNG &rng) {
             }
         }
 
-        double currentPathDist = routeLength(state.currentPath.order, state.problem.distanceMatrix);
-        if (currentPathDist < state.bestDist) {
-            state.bestDist = currentPathDist;
+        double currLen = routePathLength(state.currentPath, state.problem);
+        if (currLen < state.bestDist) {
+            state.bestDist = currLen;
             state.bestPath = state.currentPath;
+            state.stallCounter = 0; // resetar se melhorou
         }
-    }
-    state.currentIterations += state.iterations;
-    state.params.actualTemp = state.params.actualTemp / (1 + state.params.alpha * state.params.actualTemp);
+        else {
+            state.stallCounter++;
+        }
 
-    return true;
+        state.iterations++;
+        state.currentIterations++;
+    }
+
+    // resfriamento da temperatura
+    state.params.actualTemp =
+        state.params.actualTemp / (1.0 + state.params.alpha * state.params.actualTemp);
+
+    return !(state.params.actualTemp < state.params.finalTemp ||
+        state.stallCounter >= state.params.stallLimit);
 }
 
 #endif //SALEMAN_ANNEALING_H

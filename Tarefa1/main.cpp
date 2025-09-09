@@ -14,7 +14,7 @@
 #include "annealing.h"
 #include "logger.h"
 
-#define NUM_CITIES 250
+#define NUM_CITIES 100
 
 class AlgorithmVisualization
 {
@@ -122,7 +122,8 @@ public:
         saState.params.finalTemp = 1e-3;
         saState.params.alpha = 1.0 / (0.2 * NUM_CITIES);
         saState.params.actualTemp = saState.params.initialTemp;
-        saState.iterations = 5;
+        saState.params.neighborsPerTemp = 100; 
+        saState.params.stallLimit = 2000;
 
         saState.currentPath.order.resize(NUM_CITIES);
         std::iota(saState.currentPath.order.begin(), saState.currentPath.order.end(), 0);
