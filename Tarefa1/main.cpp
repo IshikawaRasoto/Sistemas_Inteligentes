@@ -14,7 +14,11 @@
 #include "annealing.h"
 #include "logger.h"
 
-#define NUM_CITIES 100
+#define NUM_CITIES 125
+#define NEIGHBORS_PER_TEMP 10
+#define STALL_LIMIT_GA 250
+#define STALL_LIMIT_SA 1000
+
 
 class AlgorithmVisualization
 {
@@ -105,6 +109,8 @@ public:
         gaParams.tournamentK = std::max(2, static_cast<int>(static_cast<double>(gaParams.populationSize) * 0.001f));
         gaParams.mutationRate = 0.1;
         gaParams.stallLimit = gaParams.generations / 10;
+		gaParams.numMutations = 1;
+		gaParams.stallLimit = STALL_LIMIT_GA;
 
         population.resize(gaParams.populationSize);
         initPopulation(population, problem.numCities(), gaRng);
@@ -122,8 +128,8 @@ public:
         saState.params.finalTemp = 1e-3;
         saState.params.alpha = 1.0 / (0.2 * NUM_CITIES);
         saState.params.actualTemp = saState.params.initialTemp;
-        saState.params.neighborsPerTemp = 100; 
-        saState.params.stallLimit = 2000;
+        saState.params.neighborsPerTemp = NEIGHBORS_PER_TEMP; 
+        saState.params.stallLimit = STALL_LIMIT_SA;
 
         saState.currentPath.order.resize(NUM_CITIES);
         std::iota(saState.currentPath.order.begin(), saState.currentPath.order.end(), 0);
@@ -213,7 +219,7 @@ public:
             const Path& p1 = population[tournamentSelect(population, gaRng, gaParams.tournamentK)];
             const Path& p2 = population[tournamentSelect(population, gaRng, gaParams.tournamentK)];
             orderCrossover(p1, p2, nextPop[i], gaRng);
-            mutateSwap(nextPop[i], gaParams.mutationRate, gaRng);
+            mutateSwap(nextPop[i], gaParams.mutationRate, gaParams.numMutations,gaRng);
         }
 
         population.swap(nextPop);

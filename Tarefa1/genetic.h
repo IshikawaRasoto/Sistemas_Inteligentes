@@ -11,7 +11,8 @@ struct GAParams {
     double mutationRate = 0.02;
     size_t tournamentK = 5;
     size_t elitism = 5;
-    size_t stallLimit = 500;
+    size_t stallLimit = 100;
+	size_t numMutations = 1;
 };
 
 inline void initPopulation(std::vector<Path> &pop, const size_t nCities, RNG &rng) {
@@ -64,11 +65,15 @@ inline void orderCrossover(const Path &p1, const Path &p2,
   }
 }
 
-inline void mutateSwap(Path &ind, const double mutationRate, RNG &rng) {
+inline void mutateSwap(Path &ind, const double mutationRate, size_t numMutations, RNG &rng) {
   const size_t n = ind.order.size();
-  for (size_t i = 0; i < n; ++i) {
+  if (n < 2) return;
+  for (size_t m = 0; m < numMutations; ++m) {
     if (rng.rand01() < mutationRate) {
-      twoOptSwap(ind, rng);
+		size_t i = rng.randint(0, n - 1);
+        size_t j = rng.randint(0, n - 1);
+		if (i > j) std::swap(i, j);
+        std::reverse(ind.order.begin() + i, ind.order.begin() + j + 1);
     }
   }
 }
@@ -93,7 +98,7 @@ inline Path runGA(Problem &problem, const GAParams &cfg, RNG &rng) {
             [](const auto &a, const auto &b) { return a.dist < b.dist; });
 
   Path best = pop.front();
-  size_t stall = 0;
+  size_t stallCounter = 0;
 
   std::vector<Path> next(pop.size());
   for (size_t gen = 0; gen < cfg.generations; ++gen) {
@@ -104,7 +109,7 @@ inline Path runGA(Problem &problem, const GAParams &cfg, RNG &rng) {
       const Path &p1 = pop[tournamentSelect(pop, rng, cfg.tournamentK)];
       const Path &p2 = pop[tournamentSelect(pop, rng, cfg.tournamentK)];
       orderCrossover(p1, p2, next[i], rng);
-      mutateSwap(next[i], cfg.mutationRate, rng);
+      mutateSwap(next[i], cfg.mutationRate, cfg.numMutations, rng);
     }
 
     pop.swap(next);
@@ -114,11 +119,13 @@ inline Path runGA(Problem &problem, const GAParams &cfg, RNG &rng) {
 
     if (pop.front().dist + 1e-9 < best.dist) {
       best = pop.front();
-      stall = 0;
+      stallCounter = 0;
     } else {
-      if (++stall >= cfg.stallLimit)
-        break;
+		stallCounter++;
     }
+
+    if (stallCounter >= cfg.stallLimit)
+		break;
   }
   return best;
 }
